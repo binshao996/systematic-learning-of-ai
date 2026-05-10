@@ -1,7 +1,11 @@
 import { CitationLink } from "./citation-link";
 import type { ChatMessage as ChatMessageType } from "@/types";
+import { ThumbsUp, ThumbsDown } from "lucide-react";
+import { useState } from "react";
 
 export function ChatMessage({ message }: { message: ChatMessageType }) {
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
+
   return (
     <div className={`${message.role === "user" ? "text-right" : ""}`}>
       <div className={`inline-block rounded-lg px-3 py-2 text-sm max-w-full ${
@@ -16,6 +20,36 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
           {message.citations.map((c, i) => (
             <CitationLink key={i} citation={c} />
           ))}
+        </div>
+      )}
+      {message.role === "assistant" && message.content && !feedback && (
+        <div className="flex gap-1 mt-1">
+          <button
+            className="p-1 rounded hover:bg-zinc-200"
+            onClick={() => {
+              setFeedback("up");
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messageId: message.id, rating: "up" }),
+              });
+            }}
+          >
+            <ThumbsUp className="h-3 w-3 text-zinc-400" />
+          </button>
+          <button
+            className="p-1 rounded hover:bg-zinc-200"
+            onClick={() => {
+              setFeedback("down");
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messageId: message.id, rating: "down" }),
+              });
+            }}
+          >
+            <ThumbsDown className="h-3 w-3 text-zinc-400" />
+          </button>
         </div>
       )}
     </div>
