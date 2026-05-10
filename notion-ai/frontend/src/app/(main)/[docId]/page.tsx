@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TipTapEditor } from "@/components/editor/tip-tap-editor";
+import { ChatPanel } from "@/components/chat/chat-panel";
 import type { Doc } from "@/types";
 
 export default function DocPage() {
@@ -40,6 +41,7 @@ export default function DocPage() {
           <TipTapEditor docId={docId} initialContent={doc.content} />
         </div>
       </div>
+      <ChatPanel docId={docId} />
     </div>
   );
 }
