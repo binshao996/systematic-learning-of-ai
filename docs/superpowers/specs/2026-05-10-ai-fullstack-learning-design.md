@@ -119,7 +119,7 @@
 - **编辑器**: Monaco Editor（VS Code 同款内核）
 - **AI**: DeepSeek Chat API + DeepSeek FIM API + LangChain + LangGraph
 - **代码分析**: tree-sitter（AST 解析, 多语言支持）
-- **本地存储**: SQLite（用户数据）, Qdrant 本地嵌入（向量索引）
+- **本地存储**: SQLite（用户数据）, SQLite vector extension 或嵌入式 Qdrant（向量索引）
 - **分发**: electron-builder（macOS .dmg + Windows .exe）, electron-updater
 
 ### MVP 功能（5周）
@@ -185,3 +185,12 @@
 | 项目2 类Coze平台 | 7周 | LangChain/LangGraph源码级, Agent编排, Tool Calling | 可视化工作流, Agent引擎, 工具系统, HITL | 可用的Agent工作流平台 |
 | 项目3 类Cursor AI | 10周 | Electron, Code RAG, FIM, DevOps | 代码编辑器, Inline Diff, Code Agent, 打包分发 | 可安装的桌面AI编辑器 |
 | **合计** | **~24周** | **7大AI技能域全覆盖** | **3个企业级项目** | **AI全栈作品集** |
+
+## 实施说明
+
+本项目分解为 3 个独立的子项目，按顺序实施：
+1. **impl-plan-1**: 类 Notion AI 知识平台（项目1）
+2. **impl-plan-2**: 类 Coze 多智能体平台（项目2）
+3. **impl-plan-3**: 类 Cursor 代码 AI 编辑器（项目3）
+
+每个子项目有独立的 implementation plan，先完成项目1再进入项目2，依次推进。
