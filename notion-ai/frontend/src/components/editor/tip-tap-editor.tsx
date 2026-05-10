@@ -7,6 +7,7 @@ import { EditorToolbar } from "./editor-toolbar";
 import { useEffect, useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AIWritingMenu } from "./ai-writing-menu";
+import { toast } from "sonner";
 
 interface TipTapEditorProps {
   docId: string;
@@ -38,6 +39,8 @@ export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: debouncedContent }),
+      }).catch(() => {
+        toast.error("Failed to save. Retrying...");
       });
     }
   }, [debouncedContent, docId]);

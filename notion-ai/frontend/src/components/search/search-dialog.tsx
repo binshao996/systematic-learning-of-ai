@@ -51,7 +51,7 @@ export function SearchDialog() {
         onValueChange={setQuery}
       />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>No results found. Try different keywords.</CommandEmpty>
         <CommandGroup heading="Documents">
           {results.map((r) => (
             <SearchResultItem

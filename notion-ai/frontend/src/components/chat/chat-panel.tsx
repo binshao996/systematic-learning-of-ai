@@ -27,6 +27,13 @@ export function ChatPanel({ docId }: { docId: string }) {
             Ask questions about this document
           </p>
         )}
+        {isStreaming && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+          <div className="flex items-center gap-1 px-2">
+            <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+        )}
       </div>
       <div className="p-3 border-t flex gap-2">
         <input
