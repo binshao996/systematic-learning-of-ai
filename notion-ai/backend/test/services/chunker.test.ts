@@ -37,6 +37,29 @@ describe("SemanticChunker", () => {
   });
 });
 
+describe("SemanticChunker - deeply nested headings", () => {
+  it("preserves deeply nested heading hierarchy", () => {
+    const text = `# H1\n## H2\n### H3\nContent here.`.repeat(5);
+    const chunks = chunkDocument(text, "semantic");
+    const h3Chunk = chunks.find((c) => c.headingPath.includes("H3"));
+    expect(h3Chunk).toBeDefined();
+    expect(h3Chunk!.headingPath).toContain("H1");
+    expect(h3Chunk!.headingPath).toContain("H2");
+  });
+});
+
+describe("RecursiveChunker", () => {
+  it("uses finer separators when coarser ones produce oversized parts", () => {
+    const longPara = "word ".repeat(600); // 600 words, each 5 chars = ~3000 chars
+    const chunks = chunkDocument(longPara, "recursive", { chunkSize: 500 });
+    expect(chunks.length).toBeGreaterThan(1);
+    // Every chunk should be at most chunkSize
+    for (const chunk of chunks) {
+      expect(chunk.text.length).toBeLessThanOrEqual(500);
+    }
+  });
+});
+
 describe("chunkDocument", () => {
   it("uses semantic chunker by default", () => {
     const chunks = chunkDocument(SAMPLE_TEXT, "semantic");

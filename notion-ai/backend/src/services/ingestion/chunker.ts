@@ -6,6 +6,14 @@ export interface Chunk {
   charEnd: number;
 }
 
+const RECURSIVE_SEPARATORS = [
+  "\n\n", // paragraphs
+  "\n", // lines
+  ". ", // sentences
+  " ", // words
+  "", // characters
+];
+
 export function FixedSizeChunker(
   text: string,
   opts: { chunkSize: number; overlap: number }
@@ -17,7 +25,8 @@ export function FixedSizeChunker(
   while (start < text.length) {
     const end = Math.min(start + opts.chunkSize, text.length);
     const chunkText = text.slice(start, end);
-    const headingPath = extractHeadingPath(text, start);
+    // Pass chunkText to ensure heading continuity in overlaps
+    const headingPath = extractHeadingPath(text, start, chunkText);
 
     chunks.push({
       text: chunkText,
@@ -39,12 +48,26 @@ export function SemanticChunker(text: string): Chunk[] {
   const chunks: Chunk[] = [];
   let charOffset = 0;
 
+  // Track heading hierarchy across sections
+  const activeHeadings: string[] = [];
+
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i];
-    if (!section.trim()) continue;
+    if (!section.trim()) {
+      charOffset += section.length;
+      continue;
+    }
 
-    const headingMatch = section.match(/^(#{1,6})\s+(.+)/m);
-    const headingPath = headingMatch ? [headingMatch[2].trim()] : [];
+    // Scan ALL headings in this section to build accurate hierarchy
+    const sectionHeadings = section.matchAll(/^(#{1,6})\s+(.+)/gm);
+    for (const m of sectionHeadings) {
+      const level = m[1].length;
+      const headingText = m[2].trim();
+      activeHeadings.length = level - 1;
+      activeHeadings[level - 1] = headingText;
+    }
+
+    const headingPath = [...activeHeadings].filter(Boolean);
 
     if (section.length > 1000) {
       const paragraphs = section.split(/\n\n+/);
@@ -74,6 +97,107 @@ export function SemanticChunker(text: string): Chunk[] {
   return chunks;
 }
 
+/**
+ * RecursiveChunker tries to split on increasingly finer separators
+ * (paragraphs -> lines -> sentences -> words -> characters).
+ * It uses the first separator where all resulting parts are under chunkSize,
+ * then merges adjacent parts into chunks up to chunkSize.
+ * Falls through to character-level splitting if no separator works.
+ */
+export function RecursiveChunker(
+  text: string,
+  opts: { chunkSize: number }
+): Chunk[] {
+  if (!text) return [];
+
+  for (const separator of RECURSIVE_SEPARATORS) {
+    if (separator === "") {
+      return splitIntoCharacterChunks(text, opts.chunkSize);
+    }
+
+    const parts = text.split(separator);
+    // Check if all parts are under chunkSize
+    const allUnder = parts.every((p) => p.length <= opts.chunkSize);
+
+    if (allUnder) {
+      return buildChunksFromParts(text, parts, separator, opts.chunkSize);
+    }
+  }
+
+  // Fallback (should not reach here since "" always works)
+  return splitIntoCharacterChunks(text, opts.chunkSize);
+}
+
+function buildChunksFromParts(
+  text: string,
+  parts: string[],
+  separator: string,
+  chunkSize: number
+): Chunk[] {
+  const chunks: Chunk[] = [];
+
+  let startIdx = 0;
+  while (startIdx < parts.length) {
+    let endIdx = startIdx + 1;
+    // Accumulate parts until adding the next would exceed chunkSize
+    while (endIdx < parts.length) {
+      const candidate = parts.slice(startIdx, endIdx + 1).join(separator);
+      if (candidate.length > chunkSize) break;
+      endIdx++;
+    }
+
+    const chunkText = parts.slice(startIdx, endIdx).join(separator);
+    const charStart = computeCharStart(parts, separator, startIdx);
+
+    chunks.push({
+      text: chunkText,
+      chunkIndex: chunks.length,
+      headingPath: extractHeadingPath(text, charStart, chunkText),
+      charStart,
+      charEnd: charStart + chunkText.length,
+    });
+
+    startIdx = endIdx;
+  }
+
+  return chunks;
+}
+
+function splitIntoCharacterChunks(
+  text: string,
+  chunkSize: number
+): Chunk[] {
+  const chunks: Chunk[] = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    const chunkText = text.slice(i, i + chunkSize);
+    chunks.push({
+      text: chunkText,
+      chunkIndex: chunks.length,
+      headingPath: extractHeadingPath(text, i, chunkText),
+      charStart: i,
+      charEnd: i + chunkText.length,
+    });
+  }
+  return chunks;
+}
+
+/**
+ * Compute the character position of parts[startIdx] in the original text.
+ * This accounts for all previous parts and their separating characters.
+ */
+function computeCharStart(
+  parts: string[],
+  separator: string,
+  startIdx: number
+): number {
+  let pos = 0;
+  for (let i = 0; i < startIdx; i++) {
+    pos += parts[i].length;
+    pos += separator.length;
+  }
+  return pos;
+}
+
 export function chunkDocument(
   text: string,
   strategy: "fixed" | "semantic" | "recursive" = "semantic",
@@ -81,25 +205,25 @@ export function chunkDocument(
 ): Chunk[] {
   switch (strategy) {
     case "fixed":
-      return FixedSizeChunker(text, { chunkSize: opts?.chunkSize ?? 500, overlap: opts?.overlap ?? 50 });
+      return FixedSizeChunker(text, {
+        chunkSize: opts?.chunkSize ?? 500,
+        overlap: opts?.overlap ?? 50,
+      });
     case "semantic":
       return SemanticChunker(text);
-    case "recursive": {
-      const semantic = SemanticChunker(text);
-      return semantic.flatMap((c) =>
-        c.text.length > 1000
-          ? FixedSizeChunker(c.text, { chunkSize: 500, overlap: 50 }).map((fc) => ({
-              ...fc,
-              headingPath: [...c.headingPath, ...fc.headingPath],
-            }))
-          : [c]
-      );
-    }
+    case "recursive":
+      return RecursiveChunker(text, {
+        chunkSize: opts?.chunkSize ?? 500,
+      });
   }
 }
 
-function extractHeadingPath(text: string, position: number): string[] {
-  // Look at text before position plus the current line for headings
+function extractHeadingPath(
+  text: string,
+  position: number,
+  chunkText?: string
+): string[] {
+  // Look at text before position for headings
   const beforeText = text.slice(0, position);
   const headings: string[] = [];
   const matches = beforeText.matchAll(/^(#{1,6})\s+(.+)/gm);
@@ -109,13 +233,18 @@ function extractHeadingPath(text: string, position: number): string[] {
     headings[level - 1] = m[2].trim();
   }
 
-  // Also check if the current position starts a heading line
-  const remainingLine = text.slice(position).split("\n")[0];
-  const currentHeading = remainingLine.match(/^(#{1,6})\s+(.+)/);
-  if (currentHeading) {
-    const level = currentHeading[1].length;
-    headings.length = level - 1;
-    headings[level - 1] = currentHeading[2].trim();
+  // Scan the chunk's own text for headings (ensures heading continuity in overlaps).
+  // Only populate heading levels that are NOT already set from before-text context,
+  // preventing same-level headings within the chunk from overriding the outer context.
+  const textToScan = chunkText ?? text.slice(position).split("\n")[0];
+  const chunkMatches = textToScan.matchAll(/^(#{1,6})\s+(.+)/gm);
+  for (const m of chunkMatches) {
+    const level = m[1].length;
+    const headingText = m[2].trim();
+    const idx = level - 1;
+    if (headings[idx] === undefined) {
+      headings[idx] = headingText;
+    }
   }
 
   return headings.filter(Boolean);
