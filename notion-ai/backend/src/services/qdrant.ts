@@ -4,7 +4,7 @@ import { env } from "../env";
 export const qdrant = new QdrantClient({ url: env.QDRANT_URL });
 
 const COLLECTION = "document_chunks";
-const VECTOR_SIZE = 1536; // DeepSeek embedding dimension
+const VECTOR_SIZE = 1024; // bge-large-zh-v1.5 embedding dimension
 
 export async function ensureCollection(): Promise<void> {
   const exists = (await qdrant.getCollections()).collections

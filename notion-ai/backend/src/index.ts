@@ -10,6 +10,11 @@ import { feedbackRoute } from "./routes/feedback";
 const app = new Hono();
 app.use("*", cors());
 
+app.onError((err, c) => {
+  console.error("Server error:", err);
+  return c.json({ error: err.message, stack: err.stack }, 500);
+});
+
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 app.route("/api/documents", documentsRoute);
 app.route("/api/upload", uploadRoute);

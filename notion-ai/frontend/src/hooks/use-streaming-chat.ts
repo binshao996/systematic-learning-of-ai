@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import type { ChatMessage } from "@/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { streamSSEChat } from "@/lib/stream-client";
 
 export function useStreamingChat(docId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -26,38 +25,21 @@ export function useStreamingChat(docId: string) {
     };
     setMessages((prev) => [...prev, assistantMsg]);
 
-    const res = await fetch(`${API_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: content, docId }),
-    });
-
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const text = decoder.decode(value);
-      const lines = text.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
-          try {
-            const chunk = JSON.parse(data) as { choices: { delta: { content: string } }[] };
-            const delta = chunk.choices[0]?.delta?.content ?? "";
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: m.content + delta } : m
-              )
-            );
-          } catch {}
-        }
-      }
+    try {
+      await streamSSEChat({
+        message: content,
+        docId,
+        onChunk: (_fullText, delta) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: m.content + delta } : m
+            )
+          );
+        },
+      });
+    } finally {
+      setIsStreaming(false);
     }
-
-    setIsStreaming(false);
   }, [docId]);
 
   return { messages, isStreaming, sendMessage };

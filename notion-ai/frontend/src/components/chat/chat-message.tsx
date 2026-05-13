@@ -28,7 +28,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
             className="p-1 rounded hover:bg-zinc-200"
             onClick={() => {
               setFeedback("up");
-              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feedback`, {
+              fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/feedback`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ messageId: message.id, rating: "up" }),
@@ -41,7 +41,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
             className="p-1 rounded hover:bg-zinc-200"
             onClick={() => {
               setFeedback("down");
-              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feedback`, {
+              fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/feedback`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ messageId: message.id, rating: "down" }),

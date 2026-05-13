@@ -6,12 +6,21 @@ import Highlight from "@tiptap/extension-highlight";
 import { EditorToolbar } from "./editor-toolbar";
 import { useEffect, useState } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { AIWritingMenu } from "./ai-writing-menu";
+import { AIBubbleMenu } from "./ai-bubble-menu";
+import { AIBlock } from "@/extensions/ai-block";
+import { AICommand } from "@/extensions/ai-command";
 import { toast } from "sonner";
 
 interface TipTapEditorProps {
   docId: string;
   initialContent: object;
+}
+
+function sanitizeContent(content: object): object {
+  if (!content || !("type" in content)) {
+    return { type: "doc", content: [] };
+  }
+  return content;
 }
 
 export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
@@ -21,12 +30,53 @@ export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: "Type / for commands..." }),
+      Placeholder.configure({ placeholder: "Type / for commands, Space for AI..." }),
       Highlight,
+      AIBlock,
+      AICommand,
     ],
-    content: initialContent,
+    content: sanitizeContent(initialContent),
+    immediatelyRender: false,
     editorProps: {
-      attributes: { class: "prose prose-zinc max-w-none focus:outline-none min-h-[200px] px-8 py-4" },
+      attributes: {
+        class: "prose prose-zinc max-w-none focus:outline-none min-h-[200px] px-8 py-4",
+      },
+      handleKeyDown: (view, event) => {
+        const { $from, empty } = view.state.selection;
+        const node = $from.parent;
+        const nodeText = node.textContent;
+
+        if (
+          (event.key === " " || event.key === "Enter") &&
+          empty &&
+          node.type.name === "paragraph"
+        ) {
+          // /ai or /aik command
+          if (nodeText === "/ai" || nodeText === "/aik") {
+            const mode = nodeText === "/aik" ? "qa" : "write";
+            const from = $from.before();
+            const to = $from.after();
+            const aiNode = view.state.schema.nodes.aiBlock.create(
+              { mode, state: "input", conversation: [] },
+            );
+            view.dispatch(view.state.tr.replaceWith(from, to, aiNode));
+            return true;
+          }
+
+          // Space in empty paragraph triggers AI
+          if (event.key === " " && nodeText.trim() === "" && node.childCount === 0) {
+            const from = $from.before();
+            const to = $from.after();
+            const aiNode = view.state.schema.nodes.aiBlock.create(
+              { mode: "write", state: "input", conversation: [] },
+            );
+            view.dispatch(view.state.tr.replaceWith(from, to, aiNode));
+            return true;
+          }
+        }
+
+        return false;
+      },
     },
   });
 
@@ -35,7 +85,7 @@ export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
 
   useEffect(() => {
     if (debouncedContent && Object.keys(debouncedContent).length > 0) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/documents/${docId}`, {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/documents/${docId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: debouncedContent }),
@@ -47,7 +97,7 @@ export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
 
   useEffect(() => {
     if (editor && initialContent) {
-      editor.commands.setContent(initialContent);
+      editor.commands.setContent(sanitizeContent(initialContent));
     }
   }, [docId]);
 
@@ -72,15 +122,17 @@ export function TipTapEditor({ docId, initialContent }: TipTapEditorProps) {
         <EditorContent editor={editor} className="max-w-3xl mx-auto" />
       </div>
       {aiMenuPos && (
-        <div style={{ position: "fixed", top: aiMenuPos.top, left: aiMenuPos.left }}>
-          <AIWritingMenu
-            selectedText={selectedText}
-            onReplace={(newText) => {
-              editor?.chain().focus().insertContent(newText).run();
-            }}
-            onClose={() => setAiMenuPos(null)}
-          />
-        </div>
+        <AIBubbleMenu
+          selectedText={selectedText}
+          position={aiMenuPos}
+          onReplace={(newText) => {
+            editor?.chain().focus().insertContent(newText).run();
+          }}
+          onInsertBelow={(newText) => {
+            editor?.chain().focus().insertContent(`\n${newText}`).run();
+          }}
+          onClose={() => setAiMenuPos(null)}
+        />
       )}
     </div>
   );

@@ -1,34 +1,39 @@
-# Notion AI — AI-Powered Knowledge Platform
+# Notion AI — AI 驱动的知识管理平台
 
-A Notion-like knowledge management platform with AI-powered chat, hybrid search, and document ingestion pipeline. Built as Project 1 of the AI Fullstack learning roadmap.
+一个类似 Notion 的知识管理平台，支持 AI 内联写作、RAG 智能问答、混合搜索和文档解析。
+
+> 详细的架构设计、技术栈选型理由和实现过程请参考 [learning/00-notion-ai-架构详解.md](learning/00-notion-ai-架构详解.md)
+
+A Notion-like knowledge management platform with AI inline writing, hybrid search, RAG Q&A, and document parsing. Built as Project 1 of the AI Fullstack learning roadmap.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (Next.js 16)                 │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │ TipTap   │ │ Chat     │ │ Search   │ │ Upload    │  │
-│  │ Editor   │ │ Panel    │ │ Dialog   │ │ Dialog    │  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
-│       │            │            │              │         │
-│       ▼            ▼            ▼              ▼         │
-│              REST API + SSE Streaming                    │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                  Frontend (Next.js 16)                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐   │
+│  │ TipTap   │ │ Inline AI│ │ Search   │ │ Upload     │   │
+│  │ Editor   │ │ (Block + │ │ Dialog   │ │ Dialog     │   │
+│  │          │ │  Bubble) │ │          │ │            │   │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬──────┘   │
+│       │            │            │              │           │
+│       ▼            ▼            ▼              ▼           │
+│              REST API + SSE Streaming                      │
+└──────────────────────┬────────────────────────────────────┘
                        │
-┌──────────────────────▼──────────────────────────────────┐
-│                 Backend (Bun + Hono)                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │ Documents│ │ Ingestion│ │ RAG      │ │ Search    │  │
-│  │ CRUD     │ │ Pipeline │ │ Engine   │ │           │  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
-│       │            │            │              │         │
-│       ▼            ▼            ▼              ▼         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐                 │
-│  │PostgreSQL│ │ Qdrant   │ │ DeepSeek │                 │
-│  │(pgvector)│ │ VectorDB │ │ API      │                 │
-│  └──────────┘ └──────────┘ └──────────┘                 │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────▼────────────────────────────────────┐
+│                Backend (Bun + Hono)                        │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐   │
+│  │ Documents│ │ Ingestion│ │ RAG      │ │ Search     │   │
+│  │ CRUD     │ │ Pipeline │ │ Engine   │ │            │   │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬──────┘   │
+│       │            │            │              │           │
+│       ▼            ▼            ▼              ▼           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                   │
+│  │PostgreSQL│ │ Qdrant   │ │ DeepSeek │                   │
+│  │(pgvector)│ │ VectorDB │ │ API      │                   │
+│  └──────────┘ └──────────┘ └──────────┘                   │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
@@ -194,13 +199,14 @@ notion-ai/
 │   ├── src/
 │   │   ├── app/                # Next.js App Router pages
 │   │   ├── components/
-│   │   │   ├── sidebar/        # DocTree, new doc, upload
-│   │   │   ├── editor/         # TipTap editor, toolbar, AI menu
-│   │   │   ├── chat/           # Chat panel, messages, citations
+│   │   │   ├── editor/         # AI block view, AI bubble menu, editor toolbar, TipTap editor
+│   │   │   ├── sidebar/        # DocTree, doc tree item (with delete), new doc button
+│   │   │   ├── upload/         # Upload dialog
 │   │   │   ├── search/         # Cmd+K search dialog
 │   │   │   └── ui/             # shadcn/ui primitives
+│   │   ├── extensions/         # AI block Node, AI command Extension
 │   │   ├── hooks/              # useDebounce, useStreamingChat
-│   │   ├── lib/                # API client, utils
+│   │   ├── lib/                # stream-client, markdown, API client, utils
 │   │   └── types/              # TypeScript interfaces
 │   └── package.json
 └── learning/                   # Structured learning notes

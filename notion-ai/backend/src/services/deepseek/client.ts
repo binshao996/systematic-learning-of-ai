@@ -33,17 +33,26 @@ export async function deepseekChat(
 }
 
 export async function deepseekEmbed(texts: string[]): Promise<number[][]> {
-  const res = await fetch(`${env.DEEPSEEK_BASE_URL}/v1/embeddings`, {
+  const apiUrl = env.EMBEDDING_API_URL || "https://api.jina.ai/v1/embeddings";
+  const apiKey = env.EMBEDDING_API_KEY || env.DEEPSEEK_API_KEY;
+  const model = env.EMBEDDING_MODEL || "jina-embeddings-v3";
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+
+  const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "deepseek-embed",
+      model,
       input: texts,
+      dimensions: 1024,
     }),
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
     const err = await res.text();

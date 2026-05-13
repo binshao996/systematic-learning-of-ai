@@ -1,7 +1,6 @@
 "use client";
 import type { Editor } from "@tiptap/react";
-import { Bold, Italic, List, ListOrdered, Heading2, Code, Strikethrough } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Bold, Italic, List, ListOrdered, Heading2, Code, Strikethrough, Sparkles, Search } from "lucide-react";
 
 const tools = [
   { icon: Bold, action: (e: Editor) => e.chain().focus().toggleBold().run(), active: "bold" },
@@ -18,16 +17,44 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
   return (
     <div className="flex items-center gap-1 px-4 py-2 border-b bg-white sticky top-0 z-10">
       {tools.map((tool) => (
-        <Button
+        <button
           key={tool.active}
-          variant={editor.isActive(tool.active) ? "secondary" : "ghost"}
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => tool.action(editor)}
+          type="button"
+          className={`inline-flex shrink-0 items-center justify-center size-8 rounded-lg text-sm font-medium transition-all select-none
+            ${editor.isActive(tool.active)
+              ? "bg-secondary text-secondary-foreground"
+              : "hover:bg-muted hover:text-foreground"}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            tool.action(editor);
+          }}
         >
-          <tool.icon className="h-4 w-4" />
-        </Button>
+          <tool.icon className="size-4" />
+        </button>
       ))}
+      <div className="w-px h-5 bg-zinc-200 mx-1" />
+      <button
+        type="button"
+        className="inline-flex shrink-0 items-center justify-center h-8 gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-all select-none text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          editor.chain().focus().insertAIBlock().run();
+        }}
+      >
+        <Sparkles className="size-4" />
+        <span className="text-xs">Ask AI</span>
+      </button>
+      <button
+        type="button"
+        className="inline-flex shrink-0 items-center justify-center h-8 gap-1.5 rounded-lg px-2.5 text-sm font-medium transition-all select-none text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          editor.chain().focus().insertAIQA().run();
+        }}
+      >
+        <Search className="size-4" />
+        <span className="text-xs">Ask Knowledge Base</span>
+      </button>
     </div>
   );
 }

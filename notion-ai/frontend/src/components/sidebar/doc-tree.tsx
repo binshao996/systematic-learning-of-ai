@@ -15,9 +15,9 @@ export function DocTree() {
 
   const fetchDocs = () => {
     setLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/documents`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/documents`)
       .then((r) => r.json())
-      .then((data) => setDocs(data))
+      .then((data) => setDocs(Array.isArray(data) ? data : []))
       .catch(() => toast.error("Failed to load documents"))
       .finally(() => setLoading(false));
   };
@@ -31,7 +31,7 @@ export function DocTree() {
           <Skeleton
             key={i}
             className="h-4"
-            style={{ width: `${60 + Math.random() * 35}%` }}
+            style={{ width: `${65 + (i * 7) % 30}%` }}
           />
         ))}
       </div>

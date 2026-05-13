@@ -1,8 +1,19 @@
 import { Hono } from "hono";
 import { ragQuery } from "../services/rag/engine";
+import { deepseekChat } from "../services/deepseek/client";
 import { db } from "../db/connection";
 import { chatSessions, chatMessages } from "../db/schema";
 import { eq } from "drizzle-orm";
+
+const WRITING_ACTIONS = [
+  "continue", "rewrite", "translate-zh", "translate-en",
+  "summarize", "improve", "longer", "shorter", "tone",
+];
+
+function isWritingAction(message: string): boolean {
+  const match = message.match(/^\[([^\]]+)\]/);
+  return match ? WRITING_ACTIONS.includes(match[1]) : false;
+}
 
 export const chatRoute = new Hono()
   .post("/", async (c) => {
@@ -27,7 +38,16 @@ export const chatRoute = new Hono()
       content: message,
     });
 
-    const stream = await ragQuery(message, { docId });
+    // Writing actions skip RAG — no citation markers needed
+    const stream = isWritingAction(message)
+      ? await deepseekChat(
+          [
+            { role: "system", content: "You are a helpful writing assistant. Provide only the writing result without any citation markers or metadata." },
+            { role: "user", content: message },
+          ],
+          { stream: true, temperature: 0.3 },
+        )
+      : await ragQuery(message, { docId });
 
     return new Response(stream.body, {
       headers: {

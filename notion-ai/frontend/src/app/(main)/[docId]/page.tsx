@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TipTapEditor } from "@/components/editor/tip-tap-editor";
-import { ChatPanel } from "@/components/chat/chat-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { Doc } from "@/types";
@@ -15,7 +14,7 @@ export default function DocPage() {
 
   useEffect(() => {
     setError(false);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/documents/${docId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/documents/${docId}`)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
         return r.json();
@@ -45,49 +44,43 @@ export default function DocPage() {
 
   if (!doc) {
     return (
-      <div className="flex h-full">
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="px-8 py-4 border-b">
-            <Skeleton className="h-8 w-48" />
-          </div>
-          <div className="flex-1 px-8 py-4 space-y-3">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-4 w-4/6" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
+      <div className="flex flex-col h-full">
+        <div className="px-8 py-4 border-b">
+          <Skeleton className="h-8 w-48" />
         </div>
-        <div className="w-80 border-l" />
+        <div className="flex-1 px-8 py-4 space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-4/6" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="px-8 py-4 border-b">
-          <input
-            type="text"
-            value={doc.title}
-            onChange={(e) => {
-              setDoc({ ...doc, title: e.target.value });
-              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/documents/${docId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: e.target.value }),
-              });
-            }}
-            className="text-2xl font-bold bg-transparent border-none outline-none w-full"
-            placeholder="Untitled"
-          />
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <TipTapEditor docId={docId} initialContent={doc.content} />
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="px-8 py-4 border-b">
+        <input
+          type="text"
+          value={doc.title}
+          onChange={(e) => {
+            setDoc({ ...doc, title: e.target.value });
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/documents/${docId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: e.target.value }),
+            });
+          }}
+          className="text-2xl font-bold bg-transparent border-none outline-none w-full"
+          placeholder="Untitled"
+        />
       </div>
-      <ChatPanel docId={docId} />
+      <div className="flex-1 overflow-y-auto">
+        <TipTapEditor docId={docId} initialContent={doc.content} />
+      </div>
     </div>
   );
 }
