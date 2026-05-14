@@ -4,13 +4,13 @@ import { z } from "zod";
 import { db } from "../db/connection";
 import { workflows } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { runWorkflow, WorkflowRow } from "../services/workflow/runner";
+import { runWorkflow, resumeRun, WorkflowRow } from "../services/workflow/runner";
 
 export const workflowsRoute = new Hono();
 
 const nodeSchema = z.object({
   id: z.string(),
-  type: z.enum(["start", "end", "agent", "code"]),
+  type: z.enum(["start", "end", "agent", "code", "human_input"]),
   agentId: z.string().optional(),
   label: z.string(),
   position: z.object({ x: z.number(), y: z.number() }),
@@ -100,3 +100,22 @@ workflowsRoute.post("/:id/run", async (c) => {
     },
   });
 });
+
+  workflowsRoute.post("/runs/:runId/human-input", async (c) => {
+    const runId = c.req.param("runId");
+    const { response } = await c.req.json() as { nodeId: string; response: string };
+
+    const stream = new ReadableStream({
+      start(controller) {
+        resumeRun(runId, response, controller);
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  });

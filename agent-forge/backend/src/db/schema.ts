@@ -9,6 +9,8 @@ export const agents = pgTable("agents", {
   temperature: real("temperature").default(0.3),
   maxTokens: integer("max_tokens").default(2048),
   toolIds: jsonb("tool_ids").default([]),
+  isTemplate: boolean("is_template").default(false),
+  category: text("category"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -33,6 +35,24 @@ export const workflows = pgTable("workflows", {
   edges: jsonb("edges").notNull().default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const conversations = pgTable("conversations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  agentId: uuid("agent_id").references(() => agents.id).notNull(),
+  title: text("title").default("New Chat"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  conversationId: uuid("conversation_id").references(() => conversations.id).notNull(),
+  role: text("role").notNull(), // user | assistant | tool
+  content: text("content"),
+  toolCalls: jsonb("tool_calls"),
+  toolCallId: text("tool_call_id"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const runs = pgTable("runs", {

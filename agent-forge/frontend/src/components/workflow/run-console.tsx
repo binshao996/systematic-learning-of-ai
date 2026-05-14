@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Loader2, Play, Square, MessageSquare } from "lucide-react";
+import { Loader2, Play, Square, MessageSquare, User } from "lucide-react";
 import { MarkdownContent } from "@/components/markdown-content";
 
 interface RunEvent {
@@ -13,6 +13,15 @@ interface RunEvent {
   toolInput?: unknown;
   toolOutput?: string;
   latencyMs?: number;
+  prompt?: string;
+  inputType?: string;
+}
+
+interface HumanInputPrompt {
+  nodeId: string;
+  prompt: string;
+  inputType: string;
+  runId: string;
 }
 
 interface RunConsoleProps {
@@ -23,6 +32,8 @@ interface RunConsoleProps {
   onInputChange: (v: string) => void;
   onRun: () => void;
   onStop: () => void;
+  humanInput: HumanInputPrompt | null;
+  submitHumanInput: (response: string) => void;
 }
 
 function EventCard({ event }: { event: RunEvent }) {
@@ -47,6 +58,16 @@ function EventCard({ event }: { event: RunEvent }) {
           </div>
         </div>
       );
+    case "human_input_required":
+      return (
+        <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 my-1">
+          <div className="flex items-center gap-1.5 mb-1">
+            <User className="h-3.5 w-3.5 text-orange-500" />
+            <span className="text-xs font-medium text-orange-600">Input Required</span>
+          </div>
+          <p className="text-sm text-orange-800">{event.prompt}</p>
+        </div>
+      );
     case "error":
       return (
         <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600 my-1">
@@ -58,8 +79,9 @@ function EventCard({ event }: { event: RunEvent }) {
   }
 }
 
-export function RunConsole({ events, running, error, input, onInputChange, onRun, onStop }: RunConsoleProps) {
+export function RunConsole({ events, running, error, input, onInputChange, onRun, onStop, humanInput, submitHumanInput }: RunConsoleProps) {
   const [width, setWidth] = useState(384);
+  const [humanResponse, setHumanResponse] = useState("");
   const dragging = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -146,9 +168,60 @@ export function RunConsole({ events, running, error, input, onInputChange, onRun
         </button>
       </div>
 
+      {/* Human Input form */}
+      {humanInput && (
+        <div className="px-3 py-3 border-b shrink-0 space-y-2 bg-orange-50/50">
+          <div className="flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-orange-500" />
+            <span className="text-xs font-semibold text-orange-600 uppercase tracking-wider">Human Input Required</span>
+          </div>
+          <p className="text-sm text-orange-800">{humanInput.prompt}</p>
+          {humanInput.inputType === "text" ? (
+            <textarea
+              value={humanResponse}
+              onChange={(e) => setHumanResponse(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && humanResponse.trim()) {
+                  e.preventDefault();
+                  submitHumanInput(humanResponse.trim());
+                  setHumanResponse("");
+                }
+              }}
+              placeholder="Your response..."
+              rows={3}
+              className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
+            />
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { submitHumanInput("approve"); setHumanResponse(""); }}
+                className="flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => { submitHumanInput("reject"); setHumanResponse(""); }}
+                className="flex-1 rounded-lg px-3 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600"
+              >
+                Reject
+              </button>
+            </div>
+          )}
+          {humanInput.inputType === "text" && (
+            <button
+              onClick={() => { submitHumanInput(humanResponse.trim()); setHumanResponse(""); }}
+              disabled={!humanResponse.trim()}
+              className="w-full rounded-lg px-3 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-40"
+            >
+              Submit
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Events */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-        {events.length === 0 && !running && !error && (
+        {events.length === 0 && !running && !error && !humanInput && (
           <p className="text-sm text-zinc-400 text-center pt-8">
             Enter input and click Run to execute the workflow.
           </p>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Bot, Play, Square } from "lucide-react";
+import { Bot, Play, Square, User } from "lucide-react";
 import { Agent } from "@/types";
 import { apiFetch } from "@/lib/api-client";
 
@@ -42,6 +42,14 @@ export function AgentPanel() {
         >
           <Square className="h-3.5 w-3.5 text-red-500 shrink-0" />
           <span className="truncate font-medium text-red-700">End</span>
+        </div>
+        <div
+          draggable
+          onDragStart={(e) => onNodeDragStart(e, "human_input")}
+          className="flex items-center gap-2 rounded-lg border border-orange-200 px-3 py-2 cursor-grab active:cursor-grabbing hover:bg-orange-50 text-sm bg-orange-50/50"
+        >
+          <User className="h-4 w-4 text-orange-500 shrink-0" />
+          <span className="truncate font-medium text-orange-700">Human Input</span>
         </div>
       </div>
 

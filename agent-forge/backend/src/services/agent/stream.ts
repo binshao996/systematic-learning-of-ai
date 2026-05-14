@@ -7,7 +7,10 @@ export type SSEEventType =
   | "node_start"
   | "node_output"
   | "error"
-  | "done";
+  | "done"
+  | "parallel_start"
+  | "parallel_end"
+  | "human_input_required";
 
 export interface SSEEvent {
   type: SSEEventType;
@@ -20,6 +23,11 @@ export interface SSEEvent {
   toolOutput?: string;
   latencyMs?: number;
   tokenUsage?: { prompt: number; completion: number };
+  branchId?: string;
+  branchCount?: number;
+  prompt?: string;
+  inputType?: string;
+  runId?: string;
 }
 
 export function emitSSE(controller: ReadableStreamDefaultController, event: SSEEvent) {

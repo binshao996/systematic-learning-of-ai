@@ -7,6 +7,8 @@ export interface Agent {
   temperature: number;
   maxTokens: number;
   toolIds: string[];
+  isTemplate: boolean;
+  category: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,7 +27,7 @@ export interface Tool {
 
 export interface WorkflowNode {
   id: string;
-  type: "start" | "end" | "agent" | "code";
+  type: "start" | "end" | "agent" | "code" | "human_input";
   agentId?: string;
   label: string;
   position: { x: number; y: number };
@@ -64,7 +66,10 @@ export type SSEEventType =
   | "node_start"
   | "node_output"
   | "error"
-  | "done";
+  | "done"
+  | "parallel_start"
+  | "parallel_end"
+  | "human_input_required";
 
 export interface TraceEvent {
   step: number;
@@ -77,6 +82,10 @@ export interface TraceEvent {
   toolOutput?: string;
   latencyMs?: number;
   tokenUsage?: { prompt: number; completion: number };
+  branchId?: string;
+  branchCount?: number;
+  prompt?: string;
+  inputType?: string;
 }
 
 export interface Run {

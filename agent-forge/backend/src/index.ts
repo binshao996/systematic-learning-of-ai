@@ -5,7 +5,7 @@ import { agentsRoute } from "./routes/agents";
 import { toolsRoute } from "./routes/tools";
 import { workflowsRoute } from "./routes/workflows";
 import { runsRoute } from "./routes/runs";
-import { seedBuiltinTools } from "./services/tools/registry";
+import { seedBuiltinTools, seedTemplateAgents } from "./services/tools/registry";
 
 const app = new Hono();
 app.use("*", cors());
@@ -22,6 +22,7 @@ app.route("/api/workflows", workflowsRoute);
 app.route("/api/runs", runsRoute);
 
 seedBuiltinTools().catch((err) => console.error("Seed tools failed:", err));
+seedTemplateAgents().catch((err) => console.error("Seed templates failed:", err));
 
 Bun.serve({
   port: env.PORT,

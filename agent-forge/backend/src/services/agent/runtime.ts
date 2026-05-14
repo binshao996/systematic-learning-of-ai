@@ -2,13 +2,14 @@ import { chatCompletion, ChatMessage, ToolDefinition } from "../llm/client";
 import { executeTool } from "../tools/execute";
 import { SSEEvent, emitSSE } from "./stream";
 import { db } from "../../db/connection";
-import { agents, tools } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { agents, tools, conversations, messages } from "../../db/schema";
+import { eq, asc } from "drizzle-orm";
 
 export async function runAgent(
   agentId: string,
   userInput: string,
   controller: ReadableStreamDefaultController,
+  conversationId?: string,
 ) {
   const startTime = Date.now();
   let step = 0;
@@ -45,8 +46,52 @@ export async function runAgent(
     }));
   }
 
-  const messages: ChatMessage[] = [
+  // Create or load conversation
+  let convId = conversationId;
+  if (!convId) {
+    const [conv] = await db.insert(conversations).values({
+      agentId,
+      title: userInput.slice(0, 80),
+    }).returning();
+    convId = conv.id;
+  }
+
+  // Load previous messages for context
+  const historyMessages: ChatMessage[] = [];
+  if (conversationId) {
+    const prevMessages = await db.select().from(messages)
+      .where(eq(messages.conversationId, convId!))
+      .orderBy(asc(messages.createdAt));
+
+    for (const msg of prevMessages) {
+      if (msg.role === "user") {
+        historyMessages.push({ role: "user", content: msg.content || "" });
+      } else if (msg.role === "assistant") {
+        historyMessages.push({
+          role: "assistant",
+          content: msg.content || "",
+          tool_calls: msg.toolCalls as ChatMessage["tool_calls"],
+        });
+      } else if (msg.role === "tool") {
+        historyMessages.push({
+          role: "tool",
+          content: msg.content || "",
+          tool_call_id: msg.toolCallId || "",
+        });
+      }
+    }
+  }
+
+  // Save user message
+  await db.insert(messages).values({
+    conversationId: convId!,
+    role: "user",
+    content: userInput,
+  });
+
+  const messages_arr: ChatMessage[] = [
     { role: "system", content: agent.systemPrompt },
+    ...historyMessages,
     { role: "user", content: userInput },
   ];
 
@@ -57,13 +102,13 @@ export async function runAgent(
     for (let iteration = 0; iteration < 10; iteration++) {
       step++;
 
-      const response = await chatCompletion(messages, toolDefs, {
+      const response = await chatCompletion(messages_arr, toolDefs, {
         temperature: agent.temperature ?? undefined,
         maxTokens: agent.maxTokens ?? undefined,
       });
 
       // Track approximate token usage
-      totalPrompt += JSON.stringify(messages).length / 4;
+      totalPrompt += JSON.stringify(messages_arr).length / 4;
       totalCompletion += (response.content || "").length / 4;
 
       // Emit thinking event
@@ -79,10 +124,18 @@ export async function runAgent(
 
       // Handle tool calls
       if (response.tool_calls?.length) {
-        messages.push({
+        messages_arr.push({
           role: "assistant",
           content: response.content || "",
           tool_calls: response.tool_calls,
+        });
+
+        // Save assistant message
+        await db.insert(messages).values({
+          conversationId: convId!,
+          role: "assistant",
+          content: response.content || "",
+          toolCalls: response.tool_calls,
         });
 
         for (const tc of response.tool_calls) {
@@ -109,10 +162,18 @@ export async function runAgent(
             agentName: agent.name,
           });
 
-          messages.push({
+          messages_arr.push({
             role: "tool",
             content: result,
             tool_call_id: tc.id,
+          });
+
+          // Save tool message
+          await db.insert(messages).values({
+            conversationId: convId!,
+            role: "tool",
+            content: result,
+            toolCallId: tc.id,
           });
         }
       } else {
@@ -128,6 +189,20 @@ export async function runAgent(
             completion: Math.round(totalCompletion),
           },
         });
+
+        // Save final assistant message
+        await db.insert(messages).values({
+          conversationId: convId!,
+          role: "assistant",
+          content: response.content || "",
+        });
+
+        // Update conversation title from first exchange
+        if (!conversationId) {
+          await db.update(conversations)
+            .set({ updatedAt: new Date() })
+            .where(eq(conversations.id, convId!));
+        }
         break;
       }
     }

@@ -37,7 +37,7 @@ export function AgentForm({ agent, onClose }: AgentFormProps) {
     e.preventDefault();
     setSaving(true);
     try {
-      if (agent) {
+      if (agent?.id) {
         await apiFetch(`/api/agents/${agent.id}`, {
           method: "PATCH",
           body: JSON.stringify(form),
@@ -135,7 +135,7 @@ export function AgentForm({ agent, onClose }: AgentFormProps) {
         disabled={saving}
         className="w-full bg-zinc-900 text-white rounded-lg py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50"
       >
-        {saving ? "Saving..." : agent ? "Update Agent" : "Create Agent"}
+        {saving ? "Saving..." : agent?.id ? "Update Agent" : "Create Agent"}
       </button>
     </form>
   );

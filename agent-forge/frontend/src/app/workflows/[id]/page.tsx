@@ -22,6 +22,7 @@ import { AgentNode } from "@/components/workflow/agent-node";
 import { StartNode } from "@/components/workflow/StartNode";
 import { EndNode } from "@/components/workflow/EndNode";
 import { CodeNode } from "@/components/workflow/CodeNode";
+import { HumanInputNode } from "@/components/workflow/HumanInputNode";
 import { AgentPanel } from "@/components/workflow/agent-panel";
 import { WorkflowToolbar } from "@/components/workflow/workflow-toolbar";
 import { RunConsole } from "@/components/workflow/run-console";
@@ -34,6 +35,7 @@ const nodeTypes = {
   endNode: EndNode,
   agentNode: AgentNode,
   codeNode: CodeNode,
+  humanInputNode: HumanInputNode,
 };
 
 export default function WorkflowEditorPage({ params }: { params: Promise<{ id: string }> }) {
@@ -48,13 +50,11 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
 
-  const { running, events, error, done, currentNodeId, run, stop } = useWorkflowRun();
+  const { running, events, error, done, currentNodeId, activeNodeIds, run, stop, humanInput, submitHumanInput } = useWorkflowRun();
 
   // Mark running/completed nodes
   const activeNodes = nodes.map((n) => {
-    const isRunning = running && (
-      n.data.agentId === currentNodeId || n.id === currentNodeId
-    );
+    const isRunning = running && activeNodeIds.has(n.data.agentId || n.id);
     const isCompleted = done || events.some(
       (e) => (e.type === "agent_output" || e.type === "node_output") &&
         (e.agentId === n.data.agentId || e.agentId === n.id)
@@ -73,6 +73,7 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
           end: "endNode",
           agent: "agentNode",
           code: "codeNode",
+          human_input: "humanInputNode",
         };
         const loadedNodes = (wf.nodes || []).map((n) => ({
           id: n.id,
@@ -83,6 +84,7 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
             agentName: "",
             agentId: n.agentId || "",
             content: n.content || "",
+            config: n.config || {},
           },
         }));
         const loadedEdges = (wf.edges || []).map((e) => ({
@@ -149,17 +151,19 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
       }
 
       // Generic node type drop (start/end/code)
-      const nodeType = e.dataTransfer.getData("application/nodetype") as "start" | "end" | "code" | "";
+      const nodeType = e.dataTransfer.getData("application/nodetype") as "start" | "end" | "code" | "human_input" | "";
       if (nodeType) {
-        const labels: Record<string, string> = { start: "Start", end: "End", code: "Code" };
-        const nodeTypeMap: Record<string, string> = { start: "startNode", end: "endNode", code: "codeNode" };
+        const labels: Record<string, string> = { start: "Start", end: "End", code: "Code", human_input: "Human Input" };
+        const nodeTypeMap: Record<string, string> = { start: "startNode", end: "endNode", code: "codeNode", human_input: "humanInputNode" };
+        const defaultHumanInputContent = nodeType === "human_input" ? "Please review and provide your input:" : undefined;
+        const defaultHumanInputConfig = nodeType === "human_input" ? { inputType: "text" } : undefined;
         setNodes((nds) => [
           ...nds,
           {
             id: nodeId,
             type: nodeTypeMap[nodeType],
             position,
-            data: { label: labels[nodeType] },
+            data: { label: labels[nodeType], content: defaultHumanInputContent, config: defaultHumanInputConfig },
           },
         ]);
       }
@@ -181,6 +185,7 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
       endNode: "end",
       agentNode: "agent",
       codeNode: "code",
+      humanInputNode: "human_input",
     };
     const flowNodes = nodes.map((n) => ({
       id: n.id,
@@ -189,6 +194,7 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
       label: n.data.label,
       position: n.position,
       content: n.data.content || undefined,
+      config: n.data.config || undefined,
     }));
     const flowEdges = edges.map((e) => ({
       id: e.id,
@@ -283,6 +289,8 @@ export default function WorkflowEditorPage({ params }: { params: Promise<{ id: s
           onInputChange={setRunInput}
           onRun={handleRun}
           onStop={stop}
+          humanInput={humanInput}
+          submitHumanInput={submitHumanInput}
         />
       </div>
     </div>
