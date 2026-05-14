@@ -1,0 +1,24 @@
+{
+  "name": "agent-forge-backend",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.8.0",
+    "@langchain/core": "^1.0.0",
+    "@langchain/langgraph": "^1.0.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.18",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  }
+}
